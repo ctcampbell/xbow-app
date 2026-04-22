@@ -3,5 +3,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-EXPOSE 5173
-CMD ["npm", "run", "dev"]
+RUN npm run build
+EXPOSE 3000
+CMD ["./node_modules/.bin/serve", "-s", "dist", "-l", "3000"]
