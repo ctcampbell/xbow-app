@@ -1,0 +1,14 @@
+{
+  "name": "xbow-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:detach": "docker compose up --build -d",
+    "seed": "docker compose exec backend npx ts-node db/seed.ts",
+    "reset": "docker compose down -v && docker compose up --build -d && sleep 8 && npm run seed",
+    "logs": "docker compose logs -f",
+    "stop": "docker compose down",
+    "stop:clean": "docker compose down -v"
+  }
+}
