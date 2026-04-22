@@ -1,27 +1,67 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import * as crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import pool from '../db';
 
 const router = Router();
 
-// VULN: admin auth is just a static header check — no JWT, no DB role verification
-// Any request with the header x-admin-key: admin gets full admin access
+function md5(s: string): string {
+  return crypto.createHash('md5').update(s).digest('hex');
+}
+
+// POST /api/admin/login — admin-specific login, checks role='admin' in DB
+// VULN: SQLi via email, user enumeration, MD5 password, weak JWT secret, no expiry
+router.post('/login', async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const hashed = md5(password || '');
+
+    // VULN: SQLi via email
+    const result = await pool.query(
+      `SELECT * FROM users WHERE email = '${email}' AND password = '${hashed}'`
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const user = result.rows[0];
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not an admin account' });
+    }
+
+    // VULN: no expiry, weak secret 'secret'
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'secret'
+    );
+
+    res.json({ token, user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// VULN: role taken from JWT payload — never verified against DB
+// An attacker who knows the secret (or uses alg:none) can forge admin tokens
 function adminOnly(req: Request, res: Response, next: NextFunction) {
-  if (req.headers['x-admin-key'] === 'admin') {
-    return next();
-  }
-  // VULN: also accepts JWT role=admin claim without verification
   const authHeader = req.headers.authorization;
-  if (authHeader) {
-    try {
-      const token = authHeader.replace('Bearer ', '');
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-        if (payload.role === 'admin') return next();
-      }
-    } catch {}
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Admin token required' });
   }
-  return res.status(403).json({ error: 'Forbidden. Use x-admin-key: admin header.' });
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    // VULN: accepts none algorithm, role taken from payload without DB check
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret', {
+      algorithms: ['HS256', 'none'] as any,
+    }) as any;
+    if (payload.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin role required' });
+    }
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
 }
 
 // Users

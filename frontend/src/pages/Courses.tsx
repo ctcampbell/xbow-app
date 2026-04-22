@@ -6,8 +6,10 @@ export default function Courses() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch]     = useState(searchParams.get('search') || '');
+  const [location, setLocation] = useState(searchParams.get('location') || '');
 
-  const searchTerm = searchParams.get('search') || '';
+  const searchTerm   = searchParams.get('search') || '';
   const locationTerm = searchParams.get('location') || '';
 
   useEffect(() => {
@@ -20,11 +22,7 @@ export default function Courses() {
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    setSearchParams({
-      search:   String(fd.get('search') || ''),
-      location: String(fd.get('location') || ''),
-    });
+    setSearchParams({ search, location });
   };
 
   return (
@@ -33,14 +31,14 @@ export default function Courses() {
 
       <form onSubmit={handleSearch} className="flex gap-3 mb-6">
         <input
-          name="search"
-          defaultValue={searchTerm}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           placeholder="Search by name..."
           className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
         <input
-          name="location"
-          defaultValue={locationTerm}
+          value={location}
+          onChange={e => setLocation(e.target.value)}
           placeholder="Filter by location..."
           className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
         />

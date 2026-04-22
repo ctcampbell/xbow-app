@@ -30,11 +30,11 @@ router.get('/', async (req, res, next) => {
     const search   = (req.query.search   as string) || '';
     const location = (req.query.location as string) || '';
 
-    // VULN: raw string concatenation — SQLi via search or location
+    // VULN: raw string concatenation — SQLi via search or location (ILIKE is equally injectable)
     const query = `
       SELECT * FROM courses
-      WHERE name LIKE '%${search}%'
-      AND location LIKE '%${location}%'
+      WHERE name ILIKE '%${search}%'
+      AND location ILIKE '%${location}%'
       ORDER BY name
     `;
     const result = await pool.query(query);

@@ -3,19 +3,90 @@ import client from '../api/client';
 
 type Tab = 'users' | 'courses' | 'rounds';
 
+function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError]       = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await client.post('/admin/login', { email, password });
+      // VULN: admin token stored in localStorage — accessible to XSS
+      localStorage.setItem('admin-jwt', res.data.token);
+      localStorage.setItem('admin-user', JSON.stringify(res.data.user));
+      onLogin();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Login failed');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-yellow-50">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm">
+        <h1 className="text-2xl font-bold text-yellow-700 mb-2">Admin Login</h1>
+        <p className="text-sm text-gray-500 mb-6">Sign in with an admin account to continue.</p>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded p-3 mb-4 text-sm">
+            {error}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="text"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              placeholder="admin@golf.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-yellow-600 text-white py-2 rounded font-semibold hover:bg-yellow-700 transition"
+          >
+            Sign In
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
-  const [tab, setTab]       = useState<Tab>('users');
-  const [users, setUsers]   = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [rounds, setRounds] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState('');
+  const [authed, setAuthed]     = useState(!!localStorage.getItem('admin-jwt'));
+  const [tab, setTab]           = useState<Tab>('users');
+  const [users, setUsers]       = useState<any[]>([]);
+  const [courses, setCourses]   = useState<any[]>([]);
+  const [rounds, setRounds]     = useState<any[]>([]);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
   const [editUser, setEditUser]     = useState<any>(null);
   const [editCourse, setEditCourse] = useState<any>(null);
   const [newCourse, setNewCourse]   = useState(false);
 
-  // VULN: admin access decided by localStorage role — no server-side JWT validation
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (authed) fetchAll();
+  }, [authed]);
+
+  const handleLogin = () => setAuthed(true);
+
+  const handleLogout = () => {
+    localStorage.removeItem('admin-jwt');
+    localStorage.removeItem('admin-user');
+    setAuthed(false);
+  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -30,10 +101,17 @@ export default function Admin() {
       setCourses(c.data);
       setRounds(r.data);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load admin data');
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        localStorage.removeItem('admin-jwt');
+        setAuthed(false);
+      } else {
+        setError(err.response?.data?.error || 'Failed to load admin data');
+      }
     }
     setLoading(false);
   };
+
+  if (!authed) return <AdminLogin onLogin={handleLogin} />;
 
   const deleteUser = async (id: number) => {
     if (!confirm('Delete user?')) return;
@@ -71,13 +149,17 @@ export default function Admin() {
   };
 
   const tabs: Tab[] = ['users', 'courses', 'rounds'];
+  const adminUser = JSON.parse(localStorage.getItem('admin-user') || 'null');
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-yellow-700 mb-2">Admin Panel</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Access granted via <code className="bg-gray-100 px-1 rounded">x-admin-key: admin</code> header.
-      </p>
+      <div className="flex justify-between items-center mb-2">
+        <h1 className="text-3xl font-bold text-yellow-700">Admin Panel</h1>
+        <div className="flex items-center gap-3 text-sm">
+          {adminUser && <span className="text-gray-500">Signed in as <strong>{adminUser.email}</strong></span>}
+          <button onClick={handleLogout} className="text-red-500 hover:underline">Sign out</button>
+        </div>
+      </div>
 
       {error && (
         <div className="bg-red-50 border border-red-300 text-red-700 rounded p-3 mb-4 text-sm">{error}</div>
@@ -205,7 +287,6 @@ export default function Admin() {
         </>
       )}
 
-      {/* Edit User Modal */}
       {editUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
@@ -225,7 +306,6 @@ export default function Admin() {
         </div>
       )}
 
-      {/* Edit/Create Course Modal */}
       {editCourse && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg">

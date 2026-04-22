@@ -8,14 +8,15 @@ const client = axios.create({
 
 // VULN: JWT read from localStorage — accessible to any XSS payload
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('jwt');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  // VULN: always sends x-admin-key for admin requests
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  if (user?.role === 'admin') {
-    config.headers['x-admin-key'] = 'admin';
+  // Admin routes use a separate admin token stored in localStorage
+  const isAdminRoute = config.url?.startsWith('/admin/') && !config.url?.endsWith('/login');
+  const adminToken = localStorage.getItem('admin-jwt');
+  const userToken  = localStorage.getItem('jwt');
+
+  if (isAdminRoute && adminToken) {
+    config.headers.Authorization = `Bearer ${adminToken}`;
+  } else if (userToken) {
+    config.headers.Authorization = `Bearer ${userToken}`;
   }
   return config;
 });

@@ -8,8 +8,12 @@ import exportRoutes from './routes/export';
 import adminRoutes  from './routes/admin';
 import debugRoutes  from './routes/debug';
 import { errorHandler } from './middleware/errorHandler';
+import { ipAllowlist } from './middleware/ipAllowlist';
 
 const app = express();
+
+app.set('trust proxy', 1);
+app.use(ipAllowlist);
 
 // VULN: CORS wildcard — any origin can make credentialed requests
 app.use(cors({
