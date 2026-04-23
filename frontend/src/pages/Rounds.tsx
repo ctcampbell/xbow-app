@@ -14,7 +14,7 @@ export default function Rounds() {
     const params: any = {};
     if (userId) params.user_id = userId;
     client.get('/rounds', { params })
-      .then(res => setRounds(res.data))
+      .then(res => { if (Array.isArray(res.data)) setRounds(res.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [userId]);

@@ -16,11 +16,11 @@ export default function Dashboard() {
         const [coursesRes] = await Promise.all([
           client.get('/courses'),
         ]);
-        setCourses(coursesRes.data.slice(0, 4));
+        if (Array.isArray(coursesRes.data)) setCourses(coursesRes.data.slice(0, 4));
 
         if (user) {
           const roundsRes = await client.get('/rounds');
-          setRounds(roundsRes.data.slice(0, 5));
+          if (Array.isArray(roundsRes.data)) setRounds(roundsRes.data.slice(0, 5));
         }
       } catch {}
       setLoading(false);

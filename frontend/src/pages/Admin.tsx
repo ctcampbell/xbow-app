@@ -97,9 +97,9 @@ export default function Admin() {
         client.get('/admin/courses'),
         client.get('/admin/rounds'),
       ]);
-      setUsers(u.data);
-      setCourses(c.data);
-      setRounds(r.data);
+      if (Array.isArray(u.data)) setUsers(u.data);
+      if (Array.isArray(c.data)) setCourses(c.data);
+      if (Array.isArray(r.data)) setRounds(r.data);
     } catch (err: any) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         localStorage.removeItem('admin-jwt');

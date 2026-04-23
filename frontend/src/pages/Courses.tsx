@@ -15,7 +15,7 @@ export default function Courses() {
   useEffect(() => {
     setLoading(true);
     client.get('/courses', { params: { search: searchTerm, location: locationTerm } })
-      .then(res => setCourses(res.data))
+      .then(res => { if (Array.isArray(res.data)) setCourses(res.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [searchTerm, locationTerm]);

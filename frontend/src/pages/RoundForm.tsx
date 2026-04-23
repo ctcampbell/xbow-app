@@ -22,7 +22,7 @@ export default function RoundForm() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    client.get('/courses').then(res => setCourses(res.data));
+    client.get('/courses').then(res => { if (Array.isArray(res.data)) setCourses(res.data); });
     if (isEdit) {
       client.get(`/rounds/${id}`).then(res => {
         const r = res.data;
