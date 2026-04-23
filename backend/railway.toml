@@ -3,7 +3,7 @@ buildCommand = "npm ci && npm run build"
 
 [deploy]
 startCommand = "node dist/index.js"
-releaseCommand = "npx ts-node db/seed.ts"
+preDeployCommand = "npx ts-node db/seed.ts"
 healthcheckPath = "/api/debug"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
