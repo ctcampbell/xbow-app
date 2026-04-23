@@ -4,5 +4,5 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
-EXPOSE 3000
-CMD ["./node_modules/.bin/serve", "-s", "dist", "-l", "3000"]
+EXPOSE ${PORT:-3000}
+CMD ["sh", "-c", "./node_modules/.bin/serve -s dist -l ${PORT:-3000}"]
