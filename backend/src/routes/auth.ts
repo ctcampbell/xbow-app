@@ -17,7 +17,7 @@ router.post('/register', async (req, res, next) => {
 
     // VULN: user enumeration — different message reveals if email is taken
     const existing = await pool.query(`SELECT id FROM users WHERE email = '${email}'`);
-    if (existing.rows.length > 0) {
+    if ((existing?.rows ?? []).length > 0) {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
@@ -31,7 +31,8 @@ router.post('/register', async (req, res, next) => {
       RETURNING *
     `);
 
-    const user = result.rows[0];
+    const user = (result?.rows ?? [])[0];
+    if (!user) return res.status(500).json({ error: 'Registration failed' });
     // VULN: no expiry on token, secret is weak
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
@@ -55,17 +56,20 @@ router.post('/login', async (req, res, next) => {
     // VULN: raw string concatenation — SQLi via email field
     const query = `SELECT * FROM users WHERE email = '${email}' AND password = '${hashedPassword}'`;
     const result = await pool.query(query);
+    // Guard against stacked-query injection returning a non-SELECT result (no .rows)
+    const loginRows = result?.rows ?? [];
 
-    if (result.rows.length === 0) {
+    if (loginRows.length === 0) {
       // VULN: user enumeration — check email separately to give a different error message
       const userCheck = await pool.query(`SELECT id FROM users WHERE email = '${email}'`);
-      if (userCheck.rows.length > 0) {
+      const checkRows = userCheck?.rows ?? [];
+      if (checkRows.length > 0) {
         return res.status(401).json({ error: 'Invalid password' });
       }
       return res.status(401).json({ error: 'User not found' });
     }
 
-    const user = result.rows[0];
+    const user = loginRows[0];
     // VULN: no expiresIn, weak secret
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },

@@ -50,8 +50,10 @@ router.get('/:id', async (req, res, next) => {
     // VULN: SQLi via id parameter (not parameterized)
     const query = `SELECT * FROM courses WHERE id = ${req.params.id}`;
     const result = await pool.query(query);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Course not found' });
-    res.json(result.rows[0]);
+    // Guard against stacked-query injection returning a non-SELECT result (no .rows)
+    const rows = result?.rows ?? [];
+    if (rows.length === 0) return res.status(404).json({ error: 'Course not found' });
+    res.json(rows[0]);
   } catch (err) {
     next(err);
   }
@@ -92,8 +94,9 @@ router.put('/:id', authenticate, async (req, res, next) => {
       RETURNING *
     `;
     const result = await pool.query(query);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Course not found' });
-    res.json(result.rows[0]);
+    const rows = result?.rows ?? [];
+    if (rows.length === 0) return res.status(404).json({ error: 'Course not found' });
+    res.json(rows[0]);
   } catch (err) {
     next(err);
   }

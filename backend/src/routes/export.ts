@@ -53,7 +53,12 @@ router.get('/scorecard/:roundId', authenticate, async (req, res, next) => {
       hole_scores: holeScores.rows,
     };
 
-    const jsonFile = path.join(EXPORTS_DIR, `score_${roundId}.json`);
+    // Write JSON to a safe path using only the numeric ID so that the writeFileSync
+    // does not crash when roundId contains '/' characters (e.g. from curl/wget
+    // injection payloads). The raw roundId is still used in the shell command below
+    // so command injection remains fully exploitable.
+    const safeId = String(parseInt(roundId, 10) || 0);
+    const jsonFile = path.join(EXPORTS_DIR, `score_${safeId}.json`);
     fs.mkdirSync(EXPORTS_DIR, { recursive: true });
     fs.writeFileSync(jsonFile, JSON.stringify(scoreData, null, 2));
 

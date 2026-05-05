@@ -1,0 +1,688 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "GolfTracker API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://backend-production-b6713.up.railway.app" },
+    { "url": "http://localhost:3001" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id":         { "type": "integer" },
+          "email":      { "type": "string" },
+          "password":   { "type": "string", "description": "MD5 hash" },
+          "first_name": { "type": "string" },
+          "last_name":  { "type": "string" },
+          "handicap":   { "type": "number" },
+          "role":       { "type": "string", "enum": ["user", "admin"] },
+          "bio":        { "type": "string" },
+          "avatar_url": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id":            { "type": "integer" },
+          "name":          { "type": "string" },
+          "location":      { "type": "string" },
+          "description":   { "type": "string" },
+          "par":           { "type": "integer" },
+          "slope_rating":  { "type": "number" },
+          "course_rating": { "type": "number" },
+          "holes":         { "type": "integer" },
+          "created_at":    { "type": "string", "format": "date-time" }
+        }
+      },
+      "HoleScore": {
+        "type": "object",
+        "properties": {
+          "id":          { "type": "integer" },
+          "round_id":    { "type": "integer" },
+          "hole_number": { "type": "integer", "minimum": 1, "maximum": 18 },
+          "score":       { "type": "integer" },
+          "par":         { "type": "integer" },
+          "created_at":  { "type": "string", "format": "date-time" }
+        }
+      },
+      "Round": {
+        "type": "object",
+        "properties": {
+          "id":          { "type": "integer" },
+          "user_id":     { "type": "integer" },
+          "course_id":   { "type": "integer" },
+          "date_played": { "type": "string", "format": "date" },
+          "total_score": { "type": "integer" },
+          "notes":       { "type": "string" },
+          "course_name": { "type": "string" },
+          "course_par":  { "type": "integer" },
+          "first_name":  { "type": "string" },
+          "last_name":   { "type": "string" },
+          "created_at":  { "type": "string", "format": "date-time" }
+        }
+      },
+      "RoundDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Round" },
+          {
+            "type": "object",
+            "properties": {
+              "email":       { "type": "string" },
+              "hole_scores": { "type": "array", "items": { "$ref": "#/components/schemas/HoleScore" } }
+            }
+          }
+        ]
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "user":  { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error":  { "type": "string" },
+          "stack":  { "type": "string" },
+          "detail": { "type": "string" },
+          "query":  { "type": "string" },
+          "hint":   { "type": "string" },
+          "code":   { "type": "string" }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "first_name", "last_name"],
+                "properties": {
+                  "email":      { "type": "string" },
+                  "password":   { "type": "string" },
+                  "first_name": { "type": "string" },
+                  "last_name":  { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "User created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "500": { "description": "Error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email":    { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "401": { "description": "Invalid credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log out (stateless — clears client-side token)",
+        "responses": {
+          "200": { "description": "Logged out", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } } }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List all users",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "User list", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a user by ID",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "User", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update a user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email":      { "type": "string" },
+                  "password":   { "type": "string" },
+                  "first_name": { "type": "string" },
+                  "last_name":  { "type": "string" },
+                  "role":       { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete a user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } } }
+        }
+      }
+    },
+    "/api/courses": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "List courses",
+        "parameters": [
+          { "name": "search",   "in": "query", "schema": { "type": "string" }, "description": "Filter by name" },
+          { "name": "location", "in": "query", "schema": { "type": "string" }, "description": "Filter by location" }
+        ],
+        "responses": {
+          "200": { "description": "Course list", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Course" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["Courses"],
+        "summary": "Create a course",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "location", "description", "par", "slope_rating", "course_rating"],
+                "properties": {
+                  "name":          { "type": "string" },
+                  "location":      { "type": "string" },
+                  "description":   { "type": "string" },
+                  "par":           { "type": "integer" },
+                  "slope_rating":  { "type": "number" },
+                  "course_rating": { "type": "number" },
+                  "holes":         { "type": "integer", "default": 18 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created course", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Course" } } } }
+        }
+      }
+    },
+    "/api/courses/fetch-image": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "Fetch an image by URL (SSRF)",
+        "parameters": [
+          { "name": "url", "in": "query", "required": true, "schema": { "type": "string" }, "description": "URL to fetch" }
+        ],
+        "responses": {
+          "200": { "description": "File content" },
+          "400": { "description": "Missing url parameter", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/courses/{id}": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "Get a course by ID",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Course", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Course" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "put": {
+        "tags": ["Courses"],
+        "summary": "Update a course",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "location", "description", "par", "slope_rating", "course_rating"],
+                "properties": {
+                  "name":          { "type": "string" },
+                  "location":      { "type": "string" },
+                  "description":   { "type": "string" },
+                  "par":           { "type": "integer" },
+                  "slope_rating":  { "type": "number" },
+                  "course_rating": { "type": "number" },
+                  "holes":         { "type": "integer", "default": 18 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated course", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Course" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Courses"],
+        "summary": "Delete a course",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } } }
+        }
+      }
+    },
+    "/api/rounds": {
+      "get": {
+        "tags": ["Rounds"],
+        "summary": "List rounds",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" }, "description": "View another user's rounds (IDOR)" }
+        ],
+        "responses": {
+          "200": { "description": "Round list", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Round" } } } } },
+          "401": { "description": "Unauthorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Rounds"],
+        "summary": "Create a round",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["course_id", "date_played"],
+                "properties": {
+                  "course_id":   { "type": "integer" },
+                  "date_played": { "type": "string", "format": "date" },
+                  "total_score": { "type": "integer" },
+                  "notes":       { "type": "string" },
+                  "user_id":     { "type": "integer", "description": "Override user (mass assignment)" },
+                  "hole_scores": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "hole_number": { "type": "integer" },
+                        "score":       { "type": "integer" },
+                        "par":         { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created round", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RoundDetail" } } } }
+        }
+      }
+    },
+    "/api/rounds/{id}": {
+      "get": {
+        "tags": ["Rounds"],
+        "summary": "Get a round by ID",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Round detail", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RoundDetail" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "put": {
+        "tags": ["Rounds"],
+        "summary": "Update a round",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["course_id", "date_played", "total_score"],
+                "properties": {
+                  "course_id":   { "type": "integer" },
+                  "date_played": { "type": "string", "format": "date" },
+                  "total_score": { "type": "integer" },
+                  "notes":       { "type": "string" },
+                  "hole_scores": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "hole_number": { "type": "integer" },
+                        "score":       { "type": "integer" },
+                        "par":         { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated round", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RoundDetail" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Rounds"],
+        "summary": "Delete a round",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } } }
+        }
+      }
+    },
+    "/api/export/scorecard/{roundId}": {
+      "get": {
+        "tags": ["Export"],
+        "summary": "Export a scorecard",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "roundId", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "format",  "in": "query", "schema": { "type": "string", "enum": ["json", "pdf", "csv"], "default": "json" } }
+        ],
+        "responses": {
+          "200": { "description": "Scorecard data or export result" }
+        }
+      }
+    },
+    "/api/export/file": {
+      "get": {
+        "tags": ["Export"],
+        "summary": "Download an export file by name (path traversal)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "name", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Filename in the exports directory" }
+        ],
+        "responses": {
+          "200": { "description": "File content" },
+          "400": { "description": "Missing name parameter", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/admin/login": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email":    { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "401": { "description": "Invalid credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "403": { "description": "Not an admin", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List all users",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "User list", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } } } }
+        }
+      }
+    },
+    "/api/admin/users/{id}": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get a user by ID",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "User", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Update a user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Delete a user",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } } }
+        }
+      }
+    },
+    "/api/admin/courses": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List all courses",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Course list", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Course" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Create a course",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "location", "description", "par", "slope_rating", "course_rating"],
+                "properties": {
+                  "name":          { "type": "string" },
+                  "location":      { "type": "string" },
+                  "description":   { "type": "string" },
+                  "par":           { "type": "integer" },
+                  "slope_rating":  { "type": "number" },
+                  "course_rating": { "type": "number" },
+                  "holes":         { "type": "integer", "default": 18 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created course", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Course" } } } }
+        }
+      }
+    },
+    "/api/admin/courses/{id}": {
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Update a course",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "location", "description", "par", "slope_rating", "course_rating"],
+                "properties": {
+                  "name":          { "type": "string" },
+                  "location":      { "type": "string" },
+                  "description":   { "type": "string" },
+                  "par":           { "type": "integer" },
+                  "slope_rating":  { "type": "number" },
+                  "course_rating": { "type": "number" },
+                  "holes":         { "type": "integer", "default": 18 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated course", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Course" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Delete a course",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } } }
+        }
+      }
+    },
+    "/api/admin/rounds": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List all rounds",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Round list", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Round" } } } } }
+        }
+      }
+    },
+    "/api/admin/rounds/{id}": {
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Delete a round",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } } }
+        }
+      }
+    },
+    "/api/debug": {
+      "get": {
+        "tags": ["Debug"],
+        "summary": "Server debug info (exposes env vars, memory, DB version)",
+        "responses": {
+          "200": {
+            "description": "Debug info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "environment": { "type": "object" },
+                    "uptime":      { "type": "number" },
+                    "memory":      { "type": "object" },
+                    "nodeVersion": { "type": "string" },
+                    "cwd":         { "type": "string" },
+                    "pid":         { "type": "integer" },
+                    "dbVersion":   { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/debug/users": {
+      "get": {
+        "tags": ["Debug"],
+        "summary": "List all users with password hashes (unauthenticated)",
+        "responses": {
+          "200": { "description": "User list including password hashes", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } } } }
+        }
+      }
+    }
+  }
+}

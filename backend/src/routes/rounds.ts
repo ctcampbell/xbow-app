@@ -19,7 +19,7 @@ router.get('/', authenticate, async (req, res, next) => {
        WHERE r.user_id = ${userId}
        ORDER BY r.date_played DESC`,
     );
-    res.json(result.rows);
+    res.json(result?.rows ?? []);
   } catch (err) {
     next(err);
   }
@@ -63,7 +63,8 @@ router.post('/', authenticate, async (req, res, next) => {
       VALUES (${userId}, ${course_id}, '${date_played}', ${total_score || 0}, '${notes || ''}')
       RETURNING *
     `);
-    const round = roundResult.rows[0];
+    const round = (roundResult?.rows ?? [])[0];
+    if (!round) return res.status(500).json({ error: 'Failed to create round' });
 
     if (Array.isArray(hole_scores)) {
       for (const hs of hole_scores) {
@@ -101,7 +102,8 @@ router.put('/:id', authenticate, async (req, res, next) => {
       RETURNING *
     `;
     const result = await pool.query(query);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Round not found' });
+    const roundRows = result?.rows ?? [];
+    if (roundRows.length === 0) return res.status(404).json({ error: 'Round not found' });
 
     if (Array.isArray(hole_scores)) {
       await pool.query('DELETE FROM hole_scores WHERE round_id = $1', [req.params.id]);
@@ -118,7 +120,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
       [req.params.id]
     );
 
-    res.json({ ...result.rows[0], hole_scores: holeResult.rows });
+    res.json({ ...roundRows[0], hole_scores: holeResult.rows });
   } catch (err) {
     next(err);
   }
