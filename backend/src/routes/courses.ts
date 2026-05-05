@@ -38,7 +38,7 @@ router.get('/', async (req, res, next) => {
       ORDER BY name
     `;
     const result = await pool.query(query);
-    res.json(result.rows);
+    res.json(result?.rows ?? []);
   } catch (err) {
     next(err);
   }

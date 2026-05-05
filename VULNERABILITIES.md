@@ -3,9 +3,8 @@
 This application is **deliberately vulnerable** for security testing and demonstration purposes.
 Do not deploy on production systems or public networks.
 
-> **Stability note (2026-05-05):** All 27 vulnerabilities remain intact. Two crash-prevention
-> changes were made so that exploit payloads no longer cause HTTP 500 responses before the
-> vulnerability triggers:
+> **Stability note (2026-05-05):** All 27 vulnerabilities remain intact. Four additional
+> crash-prevention changes were made so that exploit payloads no longer crash the process:
 >
 > 1. **Command injection (`export.ts`)** — the score JSON is now written to a safe numeric path
 >    so that `roundId` values containing `/` (e.g. `curl`/`wget` OOB URLs) no longer crash
@@ -16,6 +15,17 @@ Do not deploy on production systems or public networks.
 >    via `;` return a result without a `.rows` array; optional-chaining guards (`result?.rows ?? []`)
 >    prevent a `TypeError` crash while keeping all `SELECT`-based injection (UNION, boolean,
 >    time-based) fully functional.
+>
+> 3. **pg pool idle-client errors (`db.ts`)** — a `pool.on('error', ...)` handler was added so that
+>    a PostgreSQL connection killed while idle (e.g. after a timed-out blind-SQLi or client abort)
+>    no longer emits an unhandled Node.js `EventEmitter` `'error'` event that terminates the process.
+>    All query-level errors are still thrown from `pool.query()` and caught by the per-route
+>    `try/catch` blocks.
+>
+> 4. **Process-level safety net (`index.ts`, `errorHandler.ts`)** — `uncaughtException` and
+>    `unhandledRejection` handlers log and continue rather than exit; the error handler checks
+>    `res.headersSent` before writing, preventing a secondary unhandled exception when a client
+>    disconnects mid-request. Vulnerability exploit error messages are still returned verbatim.
 
 ---
 

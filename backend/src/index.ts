@@ -1,4 +1,15 @@
 import express from 'express';
+
+// Catch any exception that escapes the per-route try/catch blocks (e.g. an
+// error thrown inside the error handler itself after the pool idle-client fix).
+// Logs and keeps the process alive — vulnerabilities that deliberately throw
+// still surface their errors via the route-level handlers.
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection:', reason);
+});
 import cors from 'cors';
 import authRoutes   from './routes/auth';
 import userRoutes   from './routes/users';
