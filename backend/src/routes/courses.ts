@@ -70,7 +70,7 @@ router.post('/', authenticate, async (req, res, next) => {
       RETURNING *
     `;
     const result = await pool.query(query);
-    res.status(201).json(result.rows[0]);
+    res.status(201).json((result?.rows ?? [])[0]);
   } catch (err) {
     next(err);
   }
