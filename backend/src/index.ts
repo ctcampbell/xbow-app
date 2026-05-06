@@ -20,6 +20,8 @@ import adminRoutes  from './routes/admin';
 import debugRoutes  from './routes/debug';
 import { errorHandler } from './middleware/errorHandler';
 import { ipAllowlist } from './middleware/ipAllowlist';
+import pool from './db';
+import { runMigrations } from './migrate';
 
 const app = express();
 
@@ -48,9 +50,17 @@ app.use('/api/debug',   debugRoutes);
 app.use(errorHandler);
 
 const PORT = Number(process.env.PORT) || 3001;
-app.listen(PORT, () => {
-  // VULN: secrets printed to stdout on startup
-  console.log(`Backend running on port ${PORT}`);
-  console.log(`DATABASE_URL=${process.env.DATABASE_URL}`);
-  console.log(`JWT_SECRET=${process.env.JWT_SECRET}`);
-});
+
+runMigrations(pool)
+  .then(() => {
+    app.listen(PORT, () => {
+      // VULN: secrets printed to stdout on startup
+      console.log(`Backend running on port ${PORT}`);
+      console.log(`DATABASE_URL=${process.env.DATABASE_URL}`);
+      console.log(`JWT_SECRET=${process.env.JWT_SECRET}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Migration failed on boot:', err);
+    process.exit(1);
+  });
