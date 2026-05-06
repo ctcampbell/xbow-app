@@ -26,6 +26,15 @@ import { runMigrations } from './migrate';
 const app = express();
 
 app.set('trust proxy', 1);
+
+// Liveness probe — registered before any middleware so Railway's health
+// checks succeed even if the IP allowlist is enabled or the DB pool is
+// saturated by automated scanners. /api/debug remains the deliberately
+// vulnerable, DB-backed, env-dumping endpoint.
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 app.use(ipAllowlist);
 
 // VULN: CORS wildcard — any origin can make credentialed requests

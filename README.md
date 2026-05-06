@@ -79,6 +79,25 @@ Images are pushed to GitHub Container Registry on merge to `main`:
 GITHUB_REPOSITORY_OWNER=<owner> docker compose -f docker-compose.prod.yml up -d
 ```
 
+### Seeding the deployed database
+
+Schema migrations run automatically on backend boot, but seed data does **not** — seeding is a manual, one-shot step (it wipes existing data). Run it once after the first deploy, and again any time you want to reset to a clean demo state.
+
+On Railway:
+
+```bash
+railway run --service backend npx ts-node db/seed.ts
+```
+
+Against any other host, set `DATABASE_URL` and run the same command from `backend/`:
+
+```bash
+cd backend
+DATABASE_URL=postgres://... npx ts-node db/seed.ts
+```
+
+The seed truncates `users`, `courses`, `rounds`, and `hole_scores`, then re-inserts the demo fixtures and credentials listed above.
+
 ## Project Structure
 
 ```
