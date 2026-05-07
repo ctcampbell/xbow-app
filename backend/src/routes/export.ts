@@ -19,7 +19,17 @@ router.get('/file', authenticate, async (req, res, next) => {
 
     // VULN: no path.resolve/normalize — ../../etc/passwd works
     const filePath = `${EXPORTS_DIR}/${name}`;
-    res.sendFile(filePath);
+    // Handle sendFile errors inline. Without a callback, every failed traversal
+    // probe (ForbiddenError / ENOENT) is forwarded to the global error handler
+    // and a full stack is logged — under XBOW-style scanning this floods logs
+    // and can starve the log pipeline. The path traversal is unchanged: any
+    // request that resolves to a real, readable file is still served raw.
+    res.sendFile(filePath, (err: any) => {
+      if (!err || res.headersSent) return;
+      const status = err.statusCode || err.status || 500;
+      console.error(`sendFile failed [${status}] ${filePath}: ${err.message}`);
+      res.status(status).json({ error: err.message, code: err.code });
+    });
   } catch (err) {
     next(err);
   }
