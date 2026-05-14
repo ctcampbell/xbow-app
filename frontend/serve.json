@@ -1,0 +1,15 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/register", "destination": "/index.html" },
+    { "source": "/courses", "destination": "/index.html" },
+    { "source": "/courses/:id(\\d+)", "destination": "/index.html" },
+    { "source": "/rounds", "destination": "/index.html" },
+    { "source": "/rounds/new", "destination": "/index.html" },
+    { "source": "/rounds/:id(\\d+)", "destination": "/index.html" },
+    { "source": "/rounds/:id(\\d+)/edit", "destination": "/index.html" },
+    { "source": "/profile/:id(\\d+)", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" }
+  ]
+}

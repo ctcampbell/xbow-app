@@ -32,14 +32,6 @@ services:
       - exports:/exports
     restart: unless-stopped
 
-  frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-xbow}/xbow-app-frontend:latest
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
 volumes:
   pgdata:
   exports:
