@@ -138,20 +138,20 @@ async function seed() {
   const client = await pool.connect();
   try {
     await client.query(`SET lock_timeout = '10s'`);
-
-    await client.query(`
-      SELECT pg_terminate_backend(pid)
-      FROM pg_stat_activity
-      WHERE datname = current_database()
-        AND pid <> pg_backend_pid()
-    `);
-
     await client.query('BEGIN');
 
-    // Clear existing data — single statement, single lock acquisition.
-    await client.query(
-      'TRUNCATE hole_scores, rounds, courses, users RESTART IDENTITY CASCADE'
-    );
+    // Clear existing data with DELETE (row-level locks) so we don't fight
+    // the running backend for an ACCESS EXCLUSIVE lock.
+    await client.query('DELETE FROM hole_scores');
+    await client.query('DELETE FROM rounds');
+    await client.query('DELETE FROM courses');
+    await client.query('DELETE FROM users');
+
+    // Reset identity sequences since DELETE doesn't.
+    await client.query(`ALTER SEQUENCE hole_scores_id_seq RESTART WITH 1`);
+    await client.query(`ALTER SEQUENCE rounds_id_seq RESTART WITH 1`);
+    await client.query(`ALTER SEQUENCE courses_id_seq RESTART WITH 1`);
+    await client.query(`ALTER SEQUENCE users_id_seq RESTART WITH 1`);
 
     // Insert users
     const userIds: number[] = [];
