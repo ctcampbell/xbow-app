@@ -138,6 +138,14 @@ async function seed() {
   const client = await pool.connect();
   try {
     await client.query(`SET lock_timeout = '10s'`);
+
+    await client.query(`
+      SELECT pg_terminate_backend(pid)
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+        AND pid <> pg_backend_pid()
+    `);
+
     await client.query('BEGIN');
 
     // Clear existing data — single statement, single lock acquisition.
