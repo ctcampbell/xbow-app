@@ -1,0 +1,16 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+# migrate.ts resolves the schema relative to dist/, so db/ must ship too.
+COPY --from=builder /app/db ./db
+RUN npm ci --omit=dev
+EXPOSE 3001
+CMD ["node", "dist/index.js"]

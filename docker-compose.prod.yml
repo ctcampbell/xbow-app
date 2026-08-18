@@ -1,0 +1,63 @@
+# Self-hosted production stack. Every value below comes from the environment;
+# nothing sensitive is defaulted here.
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      PORT: 3001
+      NODE_ENV: production
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      # Source-IP allowlist. Fails closed: with ALLOWED_IPS empty every request
+      # is denied, so set it or set IP_ALLOWLIST_MODE=disabled. See .env.example.
+      ALLOWED_IPS: ${ALLOWED_IPS:-}
+      IP_ALLOWLIST_MODE: ${IP_ALLOWLIST_MODE:-enforce}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Build-time: Vite bakes this into the bundle. It must be an absolute
+        # URL including the scheme.
+        VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL}
+    environment:
+      ALLOWED_IPS: ${ALLOWED_IPS:-}
+      IP_ALLOWLIST_MODE: ${IP_ALLOWLIST_MODE:-enforce}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

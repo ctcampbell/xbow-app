@@ -1,0 +1,18 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/register", "destination": "/index.html" },
+    { "source": "/catalogue", "destination": "/index.html" },
+    { "source": "/books/:id(\\d+)", "destination": "/index.html" },
+    { "source": "/my-loans", "destination": "/index.html" },
+    { "source": "/profile", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/admin/books", "destination": "/index.html" },
+    { "source": "/admin/books/new", "destination": "/index.html" },
+    { "source": "/admin/books/:id(\\d+)/edit", "destination": "/index.html" },
+    { "source": "/admin/members", "destination": "/index.html" },
+    { "source": "/admin/members/:id(\\d+)", "destination": "/index.html" },
+    { "source": "/admin/loans", "destination": "/index.html" }
+  ]
+}

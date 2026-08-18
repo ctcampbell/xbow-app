@@ -1,0 +1,41 @@
+name: Deploy to Railway
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# Both steps run `railway up` from the REPO ROOT on purpose. Each Railway
+# service has its Root Directory set (backend / frontend), and Railway applies
+# that to the uploaded context — so it picks up that directory's railway.toml
+# and package.json by itself. Running `railway up` from inside backend/ would
+# make Railway look for backend/backend/ and fail, and copying a service's
+# railway.toml to the root only relocates the build commands, not the context,
+# which is what broke this workflow before.
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service backend --detach
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy frontend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service frontend --detach

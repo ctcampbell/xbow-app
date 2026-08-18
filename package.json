@@ -1,0 +1,15 @@
+{
+  "name": "library-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:detach": "docker compose up --build -d",
+    "seed": "docker compose exec backend npm run seed",
+    "reset": "docker compose down -v && docker compose up --build -d && sleep 8 && npm run seed",
+    "logs": "docker compose logs -f",
+    "stop": "docker compose down",
+    "stop:clean": "docker compose down -v",
+    "test": "npm --prefix backend test"
+  }
+}
