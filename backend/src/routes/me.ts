@@ -7,10 +7,12 @@ import { changePasswordSchema, updateProfileSchema } from '../lib/schemas';
 import { requireAuth } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
 import { validate } from '../middleware/validate';
+import accessTokenRoutes from './accessTokens';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use('/tokens', accessTokenRoutes);
 
 const PUBLIC_FIELDS = 'id, email, first_name, last_name, role, status, joined_at';
 
@@ -76,8 +78,8 @@ router.post(
       req.auth!.id,
     ]);
 
-    // Existing tokens stay valid until they expire; this app has no token
-    // store to revoke them against.
+    // Existing JWTs stay valid until expiry. Personal access tokens can be
+    // revoked individually in the profile's token settings.
     res.json({ ok: true });
   }),
 );

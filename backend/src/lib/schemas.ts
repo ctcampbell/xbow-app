@@ -37,6 +37,11 @@ export const changePasswordSchema = z.object({
   new_password: password,
 });
 
+export const createAccessTokenSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  expires_in_days: z.number().int().min(1).max(365).default(365),
+});
+
 const isbn = z
   .string()
   .trim()

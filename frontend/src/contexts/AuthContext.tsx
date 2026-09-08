@@ -43,9 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setUnauthorizedHandler(clearSession);
     const stored = sessionStorage.getItem(TOKEN_KEY);
-    if (!stored) {
+    // Personal access tokens are API credentials, never browser sessions.
+    // Clear PATs saved by earlier versions before sending any API request.
+    if (!stored || stored.trim().startsWith('lpat_')) {
+      clearSession();
       setLoading(false);
-      return;
+      return () => setUnauthorizedHandler(null);
     }
     setAuthToken(stored);
     client

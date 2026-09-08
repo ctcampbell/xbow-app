@@ -9,7 +9,9 @@ services:
       POSTGRES_USER: library
       POSTGRES_PASSWORD: library-dev-password
     ports:
-      - "5432:5432"
+      # Keep the host port separate from a locally installed Postgres server.
+      # Containers still connect to db:5432.
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

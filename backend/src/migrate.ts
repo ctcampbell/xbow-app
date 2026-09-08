@@ -1,22 +1,23 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Pool } from 'pg';
 
 /**
- * Applies db/migrations/001_init.sql. Every statement in it is guarded with
- * IF NOT EXISTS, so a boot against an already-migrated database is a no-op.
+ * Applies the ordered, idempotent SQL files in db/migrations. Each statement
+ * must be guarded so booting an already-migrated database is a no-op.
  *
  * The path is resolved relative to the compiled file, which lives in dist/,
  * so the migrations directory is one level up from there in both the dev
  * (ts-node from src/) and production (node from dist/) layouts.
  */
-const MIGRATION = join(__dirname, '..', 'db', 'migrations', '001_init.sql');
+const MIGRATIONS = join(__dirname, '..', 'db', 'migrations');
 
 export async function runMigrations(pool: Pool): Promise<void> {
-  const sql = readFileSync(MIGRATION, 'utf8');
   const client = await pool.connect();
   try {
-    await client.query(sql);
+    for (const file of readdirSync(MIGRATIONS).filter((f) => /^\d+_.*\.sql$/.test(f)).sort()) {
+      await client.query(readFileSync(join(MIGRATIONS, file), 'utf8'));
+    }
     console.log('Migration complete');
   } finally {
     client.release();

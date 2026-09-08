@@ -9,6 +9,20 @@ on:
 jobs:
   build-backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: library_test
+          POSTGRES_PASSWORD: library_test
+          POSTGRES_DB: library_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U library_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +45,12 @@ jobs:
       - name: Test backend
         working-directory: backend
         run: npm test
+
+      - name: Test personal access token lifecycle
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql://library_test:library_test@localhost:5432/library_test
+        run: npm run test:integration
 
   build-frontend:
     runs-on: ubuntu-latest

@@ -29,6 +29,9 @@ function intFromEnv(name: string, fallback: number, min: number, max: number): n
 export const config = {
   port: intFromEnv('PORT', 3001, 1, 65535),
   nodeEnv: process.env.NODE_ENV || 'development',
+  // npm run dev sets NODE_ENV explicitly through the local Compose stack.
+  // Keep limiting enabled when NODE_ENV is missing or unrecognized.
+  rateLimitEnabled: process.env.NODE_ENV !== 'development',
   databaseUrl: required('DATABASE_URL'),
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: (process.env.JWT_EXPIRES_IN || '12h').trim(),

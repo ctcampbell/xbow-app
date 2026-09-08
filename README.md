@@ -27,6 +27,9 @@ configuration is needed in development. The allowlist is explicitly disabled in
 `docker-compose.yml` — inside a container network there is no stable client
 address to allowlist.
 
+Authentication rate limiting is disabled when `NODE_ENV=development`, as set by
+`npm run dev`. It remains enabled when `NODE_ENV` is unset or has any other value.
+
 Seed the catalogue with 22 books, an administrator and four members:
 
 ```bash
@@ -38,14 +41,18 @@ generated and printed once if those are unset. The admin account is
 `admin@library.local`.
 
 Other scripts: `npm run reset` (wipe volumes, rebuild, reseed), `npm run logs`,
-`npm run stop`, `npm test` (allowlist and parity suites).
+`npm run stop`, `npm test` (allowlist, parity, and token validation suites).
+
+For token lifecycle integration tests, set `TEST_DATABASE_URL` to a disposable
+PostgreSQL database and run `npm --prefix backend run test:integration`. The
+suite creates an isolated schema and removes it afterward.
 
 ## What it does
 
 **Members** search the catalogue by title, author, ISBN, genre and
 availability; borrow and return copies; renew a loan; place a hold when every
 copy is out and watch their position in the queue; and manage their own
-details and password.
+details, password, and personal access tokens.
 
 **Administrators** get everything above plus a dashboard (stock, membership,
 overdue and popularity figures), full catalogue CRUD, a circulation view that
@@ -76,6 +83,9 @@ health checks.
 | GET | `/me` | member | Current profile |
 | PATCH | `/me` | member | Update name and email |
 | POST | `/me/password` | member | Change password |
+| GET | `/me/tokens` | member | List own personal access token metadata |
+| POST | `/me/tokens` | member | Generate a named personal access token (shown once) |
+| DELETE | `/me/tokens/:id` | owner | Revoke a personal access token |
 | GET | `/me/loans` | member | Own loans (`?status=open`) |
 | GET | `/me/holds` | member | Own holds with queue positions |
 | GET | `/books` | member | Search catalogue, paginated |
@@ -96,12 +106,47 @@ health checks.
 | PATCH | `/members/:id` | admin | Change role or status |
 | GET | `/admin/stats` | admin | Dashboard figures |
 
+### Personal access tokens
+
+Sign in and open **Your membership → Personal access tokens** to generate a
+token. Give it a descriptive name and choose 30 days, 90 days, or one year.
+Copy the token immediately; only its hash is stored, so the secret cannot be
+retrieved later. You can revoke tokens from the same page.
+
+For API access, send the token in the authorization header:
+
+```bash
+curl -H "Authorization: Bearer $LIBRARY_ACCESS_TOKEN" \
+  https://your-api.example/api/me
+```
+
+To generate one through the API using an existing login bearer token, send
+`POST /api/me/tokens` with `{"name":"Catalogue script","expires_in_days":365}`.
+`expires_in_days` is optional, defaults to 365, and accepts integers from 1 to
+365. The response contains `token` (the secret) and `access_token` (metadata).
+Listing tokens returns only metadata, including expiry and revocation dates.
+
+PATs are accepted only through the API's `Authorization: Bearer` header.
+They are not accepted through query parameters, request bodies, or cookies.
+The web UI requires email/password sign-in and clears PATs placed in its
+session storage instead of restoring them as browser sessions.
+
+Keep tokens out of URLs, source code, and committed browser state. Tokens have
+the owner's current permissions; role changes and suspension apply on the next
+request. Revocation and expiry also apply on the next request. Signing out or
+changing a password does not revoke these tokens; revoke them explicitly when
+they are no longer needed. The source-IP allowlist still applies to both the
+UI and API. The access-token table is created automatically on backend startup,
+including for existing databases.
+
 ## Security posture
 
 - **Passwords** are bcrypt hashes (cost 12). Login spends the same time on an
   unknown address as a known one, and returns one message either way.
-- **Tokens** are HS256 JWTs with the algorithm pinned at verification. The
-  token carries identity only: role and status are re-read from the database
+- **Login tokens** are HS256 JWTs with the algorithm pinned at verification.
+  **Personal access tokens** contain 256 random bits, are stored as SHA-256
+  hashes, expire within a year, and can be revoked individually. Both kinds
+  carry identity only: role and status are re-read from the database
   on every request, so a demotion or suspension takes effect immediately
   rather than when the token expires.
 - **Authorisation** is enforced server-side on every route. The frontend
@@ -119,7 +164,7 @@ health checks.
   in-process, so with multiple replicas the real ceiling is that times the
   replica count — enough to blunt online guessing, not a distributed control.
 
-The one deliberate trade-off: the token is held in `sessionStorage`, so it is
+The one deliberate trade-off: the login token is held in `sessionStorage`, so it is
 reachable from JavaScript. That is inherent to bearer-token SPAs; the app
 renders no untrusted HTML, so there is no injection point to read it with.
 Moving to httpOnly cookies would mean adding CSRF protection.

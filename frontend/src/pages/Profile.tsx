@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import client, { errorMessage } from '../api/client';
 import Alert from '../components/Alert';
+import AccessTokens from '../components/AccessTokens';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../lib/format';
 
@@ -99,6 +100,7 @@ export default function Profile() {
 
         <button type="submit" className="btn-primary" disabled={passwordState.busy}>Change password</button>
       </form>
+      <AccessTokens />
     </div>
   );
 }

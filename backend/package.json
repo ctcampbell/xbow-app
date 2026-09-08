@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "ts-node db/seed.ts",
-    "test": "node -r ts-node/register --test test/ipAccess.test.ts test/parity.test.ts"
+    "test": "node -r ts-node/register --test test/ipAccess.test.ts test/parity.test.ts test/accessToken.test.ts",
+    "test:integration": "node -r ts-node/register --test test/accessTokens.integration.test.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

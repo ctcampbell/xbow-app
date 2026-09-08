@@ -49,7 +49,10 @@ app.get('/healthz', (_req, res) => res.status(200).json({ ok: true }));
 logStartupState(accessConfig);
 app.use(ipAllowlist);
 
-app.use('/api/auth', rateLimit({ windowMs: 15 * 60_000, max: 20 }), authRoutes);
+if (config.rateLimitEnabled) {
+  app.use('/api/auth', rateLimit({ windowMs: 15 * 60_000, max: 20 }));
+}
+app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/loans', loanRoutes);
